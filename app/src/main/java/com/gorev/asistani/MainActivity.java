@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
@@ -173,6 +174,34 @@ public class MainActivity extends Activity {
             AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             boolean exact = Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms();
             return "{\"notif\":" + notif + ",\"exact\":" + exact + "}";
+        }
+
+        @JavascriptInterface
+        public void scheduleTest(int seconds) {
+            Scheduler.scheduleTest(getApplicationContext(), seconds);
+        }
+
+        @JavascriptInterface
+        public String scheduledInfo() {
+            return Scheduler.info(getApplicationContext());
+        }
+
+        @JavascriptInterface
+        public boolean batteryUnrestricted() {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            return pm.isIgnoringBatteryOptimizations(getPackageName());
+        }
+
+        @JavascriptInterface
+        public void openBatterySettings() {
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:" + getPackageName())));
+                } catch (Exception e) {
+                    try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); } catch (Exception ignored) {}
+                }
+            });
         }
 
         @JavascriptInterface

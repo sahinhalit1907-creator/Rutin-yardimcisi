@@ -79,6 +79,40 @@ final class Scheduler {
         }
     }
 
+    /** Tanılama: N saniye sonra tek seferlik alarm kurar (uygulama kapalıyken gelip gelmediğini denemek için). */
+    static void scheduleTest(Context c, int seconds) {
+        AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        Intent in = new Intent(c, ReminderReceiver.class);
+        in.putExtra("id", 2);
+        in.putExtra("title", "Test: uygulama kapalıyken geldi ✅");
+        in.putExtra("body", "Telefonun alarm sistemi çalışıyor, hatırlatmalar gelecek.");
+        PendingIntent pi = PendingIntent.getBroadcast(c, 2, in, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        long at = System.currentTimeMillis() + Math.max(5, seconds) * 1000L;
+        try {
+            if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        } catch (SecurityException e) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        }
+    }
+
+    /** Planlanan alarm sayısı ve sıradaki zaman (JSON). */
+    static String info(Context c) {
+        SharedPreferences sp = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String ids = sp.getString(KEY_IDS, "");
+        int count = ids.isEmpty() ? 0 : ids.split(",").length;
+        long next = 0;
+        try {
+            JSONArray arr = new JSONArray(sp.getString(KEY_LIST, "[]"));
+            long now = System.currentTimeMillis();
+            for (int i = 0; i < arr.length(); i++) {
+                long at = arr.getJSONObject(i).getLong("at");
+                if (at > now && (next == 0 || at < next)) next = at;
+            }
+        } catch (Exception ignored) {}
+        return "{\"count\":" + count + ",\"next\":" + next + "}";
+    }
+
     static void notifyNow(Context c, int id, String title, String body) {
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationChannel ch = new NotificationChannel(CHANNEL, "Görev hatırlatmaları", NotificationManager.IMPORTANCE_HIGH);
